@@ -1,0 +1,18 @@
+{
+  "name": "GRÃO — Editor de Imagem",
+  "short_name": "GRÃO",
+  "description": "Editor de fotos com filtros analógicos e ajustes de cor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f3ef",
+  "theme_color": "#1a1714",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

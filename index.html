@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GRÃO — Editor de Imagem</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#1a1714">
+<meta name="description" content="Editor de fotos com filtros analógicos e ajustes de cor">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GRÃO">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@1&family=Space+Mono:wght@400;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent:   #C8860A;
+  --bg:       #f5f3ef;
+  --surface:  #ffffff;
+  --border:   #e0dbd2;
+  --border2:  #c8c2b8;
+  --text:     #1a1714;
+  --muted:    #7a7570;
+  --panel-h:  270px;
+}
+
+html, body {
+  height: 100%; width: 100%;
+  background: var(--bg);
+  overflow: hidden;
+  font-family: 'Space Mono', monospace;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* TOP BAR */
+#topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 50px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 30;
+}
+
+.app-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  letter-spacing: 0.2em;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.app-name em {
+  font-family: 'DM Serif Display', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-weight: 400;
+}
+
+.top-actions { display: flex; gap: 6px; }
+
+.tbtn {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.tbtn:hover { border-color: var(--accent); color: var(--accent); }
+.tbtn:disabled { opacity: 0.3; pointer-events: none; }
+.tbtn-primary { background: var(--text); border-color: var(--text); color: #fff; }
+.tbtn-primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* PHOTO AREA */
+#photo-bg {
+  position: fixed;
+  top: 50px; left: 0; right: 0;
+  bottom: var(--panel-h);
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+#main-canvas { max-width:100%; max-height:100%; display:none; object-fit:contain; }
+
+/* DROP ZONE */
+#drop-zone {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; cursor: pointer;
+}
+#drop-zone.hidden { display: none; }
+.dz-icon {
+  width:52px; height:52px;
+  border: 1px solid var(--border2);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:4px; transition: border-color 0.15s;
+}
+#drop-zone:hover .dz-icon { border-color: var(--accent); }
+.dz-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 52px; letter-spacing: 0.14em;
+  color: var(--border2); transition: color 0.15s; user-select:none;
+}
+#drop-zone:hover .dz-title { color: var(--accent); }
+.dz-sub { font-size:8px; letter-spacing:0.16em; color:var(--muted); text-transform:uppercase; }
+
+/* COMPARE BADGE */
+#compare-label {
+  position: fixed; top:60px; left:50%; transform:translateX(-50%);
+  font-size:8px; letter-spacing:0.2em; text-transform:uppercase;
+  color:#fff; background:var(--text);
+  padding:4px 14px; z-index:31; display:none;
+}
+
+/* BOTTOM PANEL */
+#bottom-panel {
+  position: fixed; bottom:0; left:0; right:0;
+  height: var(--panel-h);
+  background: var(--surface);
+  border-top: 2px solid var(--text);
+  z-index: 20;
+  display: flex; flex-direction: column;
+}
+
+/* TAB BAR */
+#tab-bar {
+  display:flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tab {
+  flex:1; padding:9px 4px 8px;
+  font-size:7px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase;
+  text-align:center; color:var(--muted); cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+  transition:all 0.12s;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  user-select:none;
+}
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--text); border-bottom-color:var(--text); }
+.tab.active svg { stroke:var(--text) !important; }
+
+/* PANEL CONTENTS */
+.panel-content { display:none; flex:1; overflow:hidden; }
+.panel-content.active { display:flex; flex-direction:column; }
+
+/* PRESETS */
+#panel-presets { padding:14px 16px 10px; gap:12px; }
+.presets-scroll {
+  display:flex; gap:12px; overflow-x:auto; padding-bottom:2px;
+  scrollbar-width:none; flex:1;
+}
+.presets-scroll::-webkit-scrollbar { display:none; }
+.preset-item {
+  display:flex; flex-direction:column; align-items:center;
+  gap:5px; cursor:pointer; flex-shrink:0;
+}
+.preset-thumb {
+  width:58px; height:58px;
+  border:2px solid transparent; overflow:hidden;
+  background:var(--bg); transition:border-color 0.12s;
+}
+.preset-thumb canvas { width:100%; height:100%; display:block; object-fit:cover; }
+.preset-item.active .preset-thumb { border-color:var(--text); }
+.preset-label {
+  font-size:7px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--muted); transition:color 0.12s;
+}
+.preset-item.active .preset-label { color:var(--text); }
+
+#btn-reset {
+  width:100%; padding:7px;
+  background:transparent; border:1px solid var(--border);
+  color:var(--muted);
+  font-family:'Space Mono',monospace; font-size:7px; font-weight:700;
+  letter-spacing:0.14em; text-transform:uppercase;
+  cursor:pointer; transition:all 0.12s; flex-shrink:0;
+}
+#btn-reset:hover { border-color:#c0392b; color:#c0392b; }
+
+/* AJUSTES */
+#panel-adjust { flex-direction:column; padding:10px 18px 12px; gap:0; }
+.active-display {
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding-bottom:8px; border-bottom:1px solid var(--border);
+  margin-bottom:10px; flex-shrink:0;
+}
+.ad-name {
+  font-family:'Bebas Neue',sans-serif; font-size:20px;
+  letter-spacing:0.14em; color:var(--muted);
+}
+.ad-value {
+  font-family:'Bebas Neue',sans-serif; font-size:32px;
+  letter-spacing:0.04em; color:var(--text); line-height:1;
+}
+.big-slider-wrap { margin-bottom:12px; flex-shrink:0; }
+input[type="range"].big-slider {
+  -webkit-appearance:none; width:100%; height:2px;
+  background:var(--border2); outline:none; cursor:pointer;
+}
+input[type="range"].big-slider::-webkit-slider-thumb {
+  -webkit-appearance:none; width:18px; height:18px;
+  border-radius:50%; background:var(--text); cursor:pointer;
+  box-shadow:0 0 0 4px rgba(26,23,20,0.1); transition:box-shadow 0.12s;
+}
+input[type="range"].big-slider:active::-webkit-slider-thumb {
+  box-shadow:0 0 0 7px rgba(26,23,20,0.08);
+}
+
+.sliders-grid {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:8px 14px; overflow-y:auto; scrollbar-width:none;
+}
+.sliders-grid::-webkit-scrollbar { display:none; }
+.sl-row { display:flex; flex-direction:column; gap:4px; cursor:pointer; }
+.sl-row:hover .sl-name { color:var(--text); }
+.sl-header { display:flex; justify-content:space-between; align-items:center; }
+.sl-name {
+  font-size:7px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--muted); transition:color 0.12s;
+}
+.sl-val { font-size:8px; font-weight:700; color:var(--text); }
+
+input[type="range"].mini-slider {
+  -webkit-appearance:none; width:100%; height:1px;
+  background:var(--border2); outline:none; cursor:pointer;
+}
+input[type="range"].mini-slider::-webkit-slider-thumb {
+  -webkit-appearance:none; width:9px; height:9px;
+  border-radius:0; background:var(--text); cursor:pointer;
+}
+
+/* DETALHE */
+#panel-detail { padding:12px 18px; overflow-y:auto; }
+
+/* INFO */
+#panel-info { padding:12px 16px; gap:10px; }
+#histogram-canvas {
+  width:100%; height:52px;
+  background:var(--bg); border:1px solid var(--border); display:block;
+}
+.info-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:0 16px; }
+.info-item {
+  display:flex; justify-content:space-between;
+  padding:5px 0; border-bottom:1px solid var(--border);
+}
+.info-item span:first-child { font-size:7px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); }
+.info-item span:last-child  { font-size:8px; color:var(--text); }
+
+#file-input { display:none; }
+#offscreen  { display:none; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="app-name">GRÃO <em>editor de imagem</em></div>
+  <div class="top-actions">
+    <button class="tbtn" id="btn-open">Abrir</button>
+    <button class="tbtn" id="btn-compare" disabled>Original</button>
+    <button class="tbtn tbtn-primary" id="btn-export" disabled>Salvar</button>
+  </div>
+</div>
+
+<div id="compare-label">— ORIGINAL —</div>
+
+<div id="photo-bg">
+  <canvas id="main-canvas"></canvas>
+  <div id="drop-zone">
+    <div class="dz-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7a7570" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="1"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </div>
+    <div class="dz-title">GRÃO</div>
+    <div class="dz-sub">toque para abrir · jpg · png · webp</div>
+  </div>
+</div>
+
+<div id="bottom-panel">
+  <div id="tab-bar">
+    <div class="tab active" data-tab="presets">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a7570" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+      Presets
+    </div>
+    <div class="tab" data-tab="adjust">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a7570" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></svg>
+      Ajustes
+    </div>
+    <div class="tab" data-tab="detail">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a7570" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Detalhe
+    </div>
+    <div class="tab" data-tab="info">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7a7570" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Info
+    </div>
+  </div>
+
+  <div class="panel-content active" id="panel-presets">
+    <div class="presets-scroll" id="preset-strip"></div>
+    <button id="btn-reset">↺ resetar todos os ajustes</button>
+  </div>
+
+  <div class="panel-content" id="panel-adjust">
+    <div class="active-display">
+      <span class="ad-name" id="asd-name">Brilho</span>
+      <span class="ad-value" id="asd-value">0</span>
+    </div>
+    <div class="big-slider-wrap">
+      <input type="range" class="big-slider" id="big-slider" min="-100" max="100" value="0">
+    </div>
+    <div class="sliders-grid" id="sliders-grid"></div>
+  </div>
+
+  <div class="panel-content" id="panel-detail">
+    <div class="sliders-grid" id="detail-grid"></div>
+  </div>
+
+  <div class="panel-content" id="panel-info">
+    <canvas id="histogram-canvas"></canvas>
+    <div class="info-grid">
+      <div class="info-item"><span>Largura</span><span id="info-w">—</span></div>
+      <div class="info-item"><span>Altura</span><span id="info-h">—</span></div>
+      <div class="info-item"><span>Formato</span><span id="info-fmt">—</span></div>
+      <div class="info-item"><span>Tamanho</span><span id="info-size">—</span></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="image/*">
+<canvas id="offscreen"></canvas>
+
+<script>
+const state = {
+  original:null,filename:'',filetype:'',filesize:0,
+  comparing:false,activePreset:'Normal',
+  adj:{brightness:0,contrast:0,exposure:0,saturation:0,temperature:0,hue:0,sharpness:0,vignette:0,grain:0}
+};
+
+const PRESETS=[
+  {name:'Normal', adj:{}},
+  {name:'Kodak',  adj:{brightness:5,contrast:10,saturation:15,temperature:20}},
+  {name:'Portra', adj:{brightness:8,contrast:-5,saturation:-10,temperature:25,grain:15}},
+  {name:'Velvia', adj:{contrast:25,saturation:40,exposure:-10}},
+  {name:'Faded',  adj:{brightness:20,contrast:-25,saturation:-30,exposure:10}},
+  {name:'B&W',    adj:{saturation:-100,contrast:15}},
+  {name:'Noir',   adj:{saturation:-100,contrast:40,brightness:-15,vignette:50}},
+  {name:'Matte',  adj:{contrast:-30,brightness:15,saturation:-20}},
+  {name:'Tokyo',  adj:{temperature:-30,contrast:20,saturation:20,vignette:20}},
+  {name:'Desert', adj:{temperature:40,saturation:-15,brightness:5,grain:20}},
+  {name:'Aether', adj:{temperature:-20,brightness:10,saturation:-5,vignette:30}},
+  {name:'Lomo',   adj:{saturation:30,contrast:30,vignette:60,grain:25,brightness:-10}},
+];
+
+const ADJUST_SLIDERS=[
+  {key:'brightness',label:'Brilho',min:-100,max:100},
+  {key:'contrast',label:'Contraste',min:-100,max:100},
+  {key:'exposure',label:'Exposição',min:-100,max:100},
+  {key:'saturation',label:'Saturação',min:-100,max:100},
+  {key:'temperature',label:'Temperatura',min:-100,max:100},
+  {key:'hue',label:'Matiz',min:-180,max:180},
+];
+const DETAIL_SLIDERS=[
+  {key:'sharpness',label:'Nitidez',min:0,max:100},
+  {key:'vignette',label:'Vinheta',min:0,max:100},
+  {key:'grain',label:'Grão',min:0,max:100},
+];
+const ALL_SLIDERS=[...ADJUST_SLIDERS,...DETAIL_SLIDERS];
+
+const mainCanvas=document.getElementById('main-canvas');
+const ctx=mainCanvas.getContext('2d',{willReadFrequently:true});
+const offscreen=document.getElementById('offscreen');
+const offCtx=offscreen.getContext('2d',{willReadFrequently:true});
+const histCanvas=document.getElementById('histogram-canvas');
+const histCtx=histCanvas.getContext('2d');
+const bigSlider=document.getElementById('big-slider');
+const asdName=document.getElementById('asd-name');
+const asdValue=document.getElementById('asd-value');
+
+function buildSliderRow(def,container){
+  const row=document.createElement('div');
+  row.className='sl-row';
+  row.innerHTML=`<div class="sl-header"><span class="sl-name">${def.label}</span><span class="sl-val" id="val-${def.key}">0</span></div><input type="range" class="mini-slider" id="sl-${def.key}" min="${def.min}" max="${def.max}" value="0">`;
+  container.appendChild(row);
+  const sl=row.querySelector('input'),vl=row.querySelector('.sl-val');
+  row.addEventListener('click',()=>focusSlider(def));
+  sl.addEventListener('input',()=>{
+    state.adj[def.key]=+sl.value;vl.textContent=sl.value;
+    asdName.textContent=def.label;asdValue.textContent=sl.value;
+    if(bigSlider._def?.key===def.key)bigSlider.value=sl.value;
+    state.activePreset=null;updatePresetUI();render();
+  });
+}
+ADJUST_SLIDERS.forEach(d=>buildSliderRow(d,document.getElementById('sliders-grid')));
+DETAIL_SLIDERS.forEach(d=>buildSliderRow(d,document.getElementById('detail-grid')));
+
+function focusSlider(def){
+  bigSlider._def=def;bigSlider.min=def.min;bigSlider.max=def.max;
+  bigSlider.value=state.adj[def.key]||0;
+  asdName.textContent=def.label;asdValue.textContent=bigSlider.value;
+}
+focusSlider(ADJUST_SLIDERS[0]);
+
+bigSlider.addEventListener('input',()=>{
+  const def=bigSlider._def;if(!def)return;
+  state.adj[def.key]=+bigSlider.value;
+  const sl=document.getElementById('sl-'+def.key),vl=document.getElementById('val-'+def.key);
+  if(sl)sl.value=bigSlider.value;if(vl)vl.textContent=bigSlider.value;
+  asdValue.textContent=bigSlider.value;
+  state.activePreset=null;updatePresetUI();render();
+});
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel-content').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.dataset.tab).classList.add('active');
+    if(tab.dataset.tab==='info')updateHistogram();
+  });
+});
+
+const presetStrip=document.getElementById('preset-strip');
+PRESETS.forEach(p=>{
+  const item=document.createElement('div');
+  item.className='preset-item'+(p.name==='Normal'?' active':'');
+  item.dataset.name=p.name;
+  const thumb=document.createElement('div');thumb.className='preset-thumb';
+  const c=document.createElement('canvas');c.width=60;c.height=60;
+  thumb.appendChild(c);
+  const lbl=document.createElement('div');lbl.className='preset-label';lbl.textContent=p.name;
+  item.appendChild(thumb);item.appendChild(lbl);
+  item.addEventListener('click',()=>applyPreset(p));
+  presetStrip.appendChild(item);
+});
+
+function applyPreset(p){state.activePreset=p.name;setAllSliders(p.adj);updatePresetUI();render();}
+function updatePresetUI(){document.querySelectorAll('.preset-item').forEach(el=>el.classList.toggle('active',el.dataset.name===state.activePreset));}
+function updatePresetThumbs(){if(!state.original)return;Array.from(presetStrip.children).forEach((item,i)=>renderTo(item.querySelector('canvas'),PRESETS[i].adj));}
+
+function loadFile(file){
+  if(!file||!file.type.startsWith('image/'))return;
+  state.filename=file.name;state.filetype=file.type.replace('image/','').toUpperCase();state.filesize=file.size;
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{
+    state.original=img;offscreen.width=img.naturalWidth;offscreen.height=img.naturalHeight;offCtx.drawImage(img,0,0);
+    document.getElementById('drop-zone').classList.add('hidden');
+    mainCanvas.style.display='block';
+    document.getElementById('btn-export').disabled=false;
+    document.getElementById('btn-compare').disabled=false;
+    document.getElementById('info-w').textContent=img.naturalWidth+' px';
+    document.getElementById('info-h').textContent=img.naturalHeight+' px';
+    document.getElementById('info-fmt').textContent=state.filetype;
+    const kb=(state.filesize/1024).toFixed(0);
+    document.getElementById('info-size').textContent=kb>1024?(kb/1024).toFixed(1)+' MB':kb+' KB';
+    updatePresetThumbs();render();URL.revokeObjectURL(url);
+  };img.src=url;
+}
+
+document.getElementById('drop-zone').addEventListener('click',()=>document.getElementById('file-input').click());
+document.getElementById('btn-open').addEventListener('click',()=>document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change',e=>loadFile(e.target.files[0]));
+document.body.addEventListener('dragover',e=>e.preventDefault());
+document.body.addEventListener('drop',e=>{e.preventDefault();loadFile(e.dataTransfer.files[0]);});
+
+function renderTo(targetCanvas,adj){
+  if(!state.original)return;
+  const A=Object.assign({brightness:0,contrast:0,exposure:0,saturation:0,temperature:0,hue:0,sharpness:0,vignette:0,grain:0},adj);
+  const W=state.original.naturalWidth,H=state.original.naturalHeight;
+  targetCanvas.width=W;targetCanvas.height=H;
+  const tCtx=targetCanvas.getContext('2d',{willReadFrequently:true});
+  tCtx.drawImage(state.original,0,0);
+  const id=tCtx.getImageData(0,0,W,H),d=id.data;
+  const bright=A.brightness/100*80,expMult=Math.pow(2,A.exposure/50);
+  const cF=(259*(A.contrast*2.55+255))/(255*(259-A.contrast*2.55));
+  const sat=(A.saturation+100)/100,temp=A.temperature/100,hueShift=A.hue;
+  for(let i=0;i<d.length;i+=4){
+    let r=d[i],g=d[i+1],b=d[i+2];
+    r*=expMult;g*=expMult;b*=expMult;
+    r+=bright;g+=bright;b+=bright;
+    r=cF*(r-128)+128;g=cF*(g-128)+128;b=cF*(b-128)+128;
+    r+=temp*30;b-=temp*30;
+    const lum=0.299*r+0.587*g+0.114*b;
+    r=lum+(r-lum)*sat;g=lum+(g-lum)*sat;b=lum+(b-lum)*sat;
+    if(hueShift!==0){
+      let rn=cl(r)/255,gn=cl(g)/255,bn=cl(b)/255;
+      let[h,s,l]=rgbToHsl(rn,gn,bn);h=(h+hueShift/360+1)%1;
+      [rn,gn,bn]=hslToRgb(h,s,l);r=rn*255;g=gn*255;b=bn*255;
+    }
+    d[i]=cl(r);d[i+1]=cl(g);d[i+2]=cl(b);
+  }
+  tCtx.putImageData(id,0,0);
+  if(A.vignette>0){
+    const v=A.vignette/100,grad=tCtx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.3,W/2,H/2,Math.max(W,H)*0.75);
+    grad.addColorStop(0,'rgba(0,0,0,0)');grad.addColorStop(1,`rgba(0,0,0,${v*0.85})`);
+    tCtx.fillStyle=grad;tCtx.fillRect(0,0,W,H);
+  }
+  if(A.grain>0){
+    const gid=tCtx.getImageData(0,0,W,H),gd=gid.data,str=A.grain/100*55;
+    for(let i=0;i<gd.length;i+=4){const n=(Math.random()-0.5)*str;gd[i]=cl(gd[i]+n);gd[i+1]=cl(gd[i+1]+n);gd[i+2]=cl(gd[i+2]+n);}
+    tCtx.putImageData(gid,0,0);
+  }
+}
+
+function render(){
+  if(!state.original)return;
+  const W=state.original.naturalWidth,H=state.original.naturalHeight;
+  mainCanvas.width=W;mainCanvas.height=H;
+  state.comparing?ctx.drawImage(state.original,0,0):renderTo(mainCanvas,state.adj);
+  fitCanvas();
+  if(document.querySelector('.tab[data-tab="info"]').classList.contains('active'))updateHistogram();
+}
+
+function fitCanvas(){
+  const ph=document.getElementById('bottom-panel').offsetHeight;
+  const avW=window.innerWidth,avH=window.innerHeight-50-ph;
+  const W=mainCanvas.width,H=mainCanvas.height;if(!W||!H)return;
+  const scale=Math.min(avW/W,avH/H);
+  mainCanvas.style.width=(W*scale)+'px';mainCanvas.style.height=(H*scale)+'px';
+}
+
+function updateHistogram(){
+  if(!state.original||!mainCanvas.width)return;
+  const HW=histCanvas.width=histCanvas.offsetWidth||200,HH=histCanvas.height=52;
+  histCtx.clearRect(0,0,HW,HH);
+  const iData=ctx.getImageData(0,0,mainCanvas.width,mainCanvas.height).data;
+  const rB=new Uint32Array(256),gB=new Uint32Array(256),bB=new Uint32Array(256);
+  for(let i=0;i<iData.length;i+=16){rB[iData[i]]++;gB[iData[i+1]]++;bB[iData[i+2]]++;}
+  const max=Math.max(...rB,...gB,...bB);
+  const draw=(bins,color)=>{histCtx.beginPath();histCtx.strokeStyle=color;histCtx.lineWidth=1;for(let x=0;x<256;x++){const y=HH-(bins[x]/max)*(HH-2);x===0?histCtx.moveTo(0,y):histCtx.lineTo((x/255)*HW,y);}histCtx.stroke();};
+  draw(rB,'rgba(200,50,50,0.8)');draw(gB,'rgba(40,160,60,0.8)');draw(bB,'rgba(50,100,200,0.8)');
+}
+
+const btnCmp=document.getElementById('btn-compare'),cmpLbl=document.getElementById('compare-label');
+btnCmp.addEventListener('mousedown',()=>{state.comparing=true;cmpLbl.style.display='block';render();});
+btnCmp.addEventListener('mouseup',()=>{state.comparing=false;cmpLbl.style.display='none';render();});
+btnCmp.addEventListener('touchstart',e=>{e.preventDefault();state.comparing=true;cmpLbl.style.display='block';render();});
+btnCmp.addEventListener('touchend',()=>{state.comparing=false;cmpLbl.style.display='none';render();});
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&state.original){e.preventDefault();state.comparing=true;cmpLbl.style.display='block';render();}});
+document.addEventListener('keyup',e=>{if(e.code==='Space'){state.comparing=false;cmpLbl.style.display='none';render();}});
+
+document.getElementById('btn-reset').addEventListener('click',()=>{setAllSliders({});state.activePreset='Normal';updatePresetUI();render();});
+
+function setAllSliders(adj){
+  ALL_SLIDERS.forEach(def=>{
+    const v=adj[def.key]!==undefined?adj[def.key]:0;
+    state.adj[def.key]=v;
+    const sl=document.getElementById('sl-'+def.key),vl=document.getElementById('val-'+def.key);
+    if(sl)sl.value=v;if(vl)vl.textContent=v;
+  });
+  if(bigSlider._def){bigSlider.value=state.adj[bigSlider._def.key]||0;asdValue.textContent=bigSlider.value;}
+}
+
+document.getElementById('btn-export').addEventListener('click',()=>{
+  if(!state.original)return;
+  const ec=document.createElement('canvas');renderTo(ec,state.adj);
+  const link=document.createElement('a'),ext=state.filetype==='PNG'?'png':'jpg';
+  link.download=state.filename.replace(/\.[^.]+$/,'')+`_grao.${ext}`;
+  link.href=ec.toDataURL(ext==='png'?'image/png':'image/jpeg',0.95);link.click();
+});
+
+function cl(v){return Math.max(0,Math.min(255,v));}
+function rgbToHsl(r,g,b){const mx=Math.max(r,g,b),mn=Math.min(r,g,b);let h,s,l=(mx+mn)/2;if(mx===mn)return[0,0,l];const d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);switch(mx){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break;}return[h,s,l];}
+function hslToRgb(h,s,l){if(s===0)return[l,l,l];const q=l<0.5?l*(1+s):l+s-l*s,p=2*l-q;const f=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};return[f(p,q,h+1/3),f(p,q,h),f(p,q,h-1/3)];}
+
+window.addEventListener('resize',()=>{if(state.original)fitCanvas();});
+</script>
+</body>
+</html>
